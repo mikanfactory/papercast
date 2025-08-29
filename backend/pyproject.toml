@@ -4,4 +4,25 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.116.1",
+    "google-cloud-storage>=3.3.0",
+    "google-genai>=1.32.0",
+    "langchain>=0.3.27",
+    "langchain-google-genai>=2.1.10",
+    "langgraph>=0.6.6",
+    "python-dotenv>=1.1.1",
+    "python-multipart>=0.0.20",
+    "pyyaml>=6.0.2",
+    "supabase>=2.18.1",
+]
+
+[dependency-groups]
+dev = [
+    "click>=8.2.1",
+    "ipython>=9.4.0",
+    "langsmith>=0.4.20",
+    "pre-commit>=4.3.0",
+    "pytest>=8.4.1",
+    "ruff>=0.12.11",
+]
