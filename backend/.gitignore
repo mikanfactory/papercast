@@ -1,4 +1,5 @@
 .env
+backend.iml
 
 # Python-generated files
 __pycache__/
