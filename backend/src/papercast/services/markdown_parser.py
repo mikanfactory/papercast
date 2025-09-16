@@ -18,6 +18,10 @@ class ArxivSection(BaseModel):
         ..., description="次のセクションのタイトル（終了ページの決定に使用）"
     )
 
+    @property
+    def section_title_with_level(self) -> str:
+        return f"{self.section_level_name} {self.title}"
+
 
 def _extract_lines(text: str, marker: str, keep: str) -> str:
     lines = text.splitlines()
@@ -74,13 +78,23 @@ class MarkdownParser:
         md = extract_before(md, section.next_section_title)
         return md
 
+    def read_all(self):
+        md = pymupdf4llm.to_markdown(
+            self.doc,
+            ignore_graphics=True,
+            ignore_images=True,
+            ignore_code=True,
+        )
+        return md
+
 
 if __name__ == "__main__":
     # sample = "downloads/2509.01106v1.pdf"
     sample = "downloads/2509.02547v1.pdf"
 
     parser = MarkdownParser(sample)
-    for sec in parser.extract_sections_by_outline()[:2]:
-        print(sec.title)
-        print(parser.extract_markdown_text(sec))
-        print("**********************************************")
+    # for sec in parser.extract_sections_by_outline()[:2]:
+    #     print(sec.title)
+    #     print(parser.extract_markdown_text(sec))
+    #     print("**********************************************")
+    print(parser.read_all())

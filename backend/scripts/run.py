@@ -1,4 +1,4 @@
-from papercast.services.pdf_file_service import to_markdown_by_outline, to_markdown_by_headings
+from papercast.services.markdown_parser import to_markdown_by_outline, to_markdown_by_headings
 
 def main():
     sample = "downloads/2509.01106v1.pdf"

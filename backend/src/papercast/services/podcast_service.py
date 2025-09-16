@@ -1,14 +1,14 @@
-from enum import Enum
+from pathlib import Path
 import asyncio
 from logging import getLogger
 
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.func import entrypoint, task
 from pydantic import BaseModel, Field
 
 from papercast.config import GEMINI_API_KEY
+from papercast.services.markdown_parser import MarkdownParser, ArxivSection
 
 logger = getLogger(__name__)
 MAX_RETRY_COUNT = 3
@@ -21,34 +21,17 @@ class ArxivPaper(BaseModel):
     abstract: str = Field(..., description="論文のアブストラクト")
     authors: list[str] = Field(..., description="著者のリスト")
     url: str = Field(..., description="論文のURL")
+    sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
 
 
-class TopicTitle(Enum):
-    APPETIZER = "Appetizer"
-    MAIN_DISH = "Main Dish"
-    LAST_DISH = "Last Dish"
-
-    @property
-    def prompt(self) -> str:
-        if self == TopicTitle.APPETIZER:
-            return "序論、背景、関連研究"
-        elif self == TopicTitle.MAIN_DISH:
-            return "手法、実験、結果"
-        elif self == TopicTitle.LAST_DISH:
-            return "考察、結論、今後の展望"
-        else:
-            raise ValueError("Invalid TopicTitle")
+class SectionSummary(BaseModel):
+    section: ArxivSection = Field(..., description="セクション")
+    summary: str = Field(..., description="セクションの要約")
 
 
-class PodcastTopic(BaseModel):
-    title: TopicTitle = Field(..., description="トピックのタイトル")
-    sections: list[int] = Field(..., description="トピックのセクションリスト")
-
-
-class PodcastTopicSummary(BaseModel):
-    title: TopicTitle = Field(..., description="トピックのタイトル")
-    sections: list[int] = Field(..., description="トピックのセクションリスト")
-    summary: str = Field(..., description="トピックの要約")
+class PodcastScriptWritingResult(BaseModel):
+    script: str = Field(..., description="生成されたポッドキャストの台本")
+    missing_infos: list[tuple[ArxivSection, str]] = Field(..., description="台本に反映されなかった情報のリスト")
 
 
 class EvaluateResult(BaseModel):
@@ -56,88 +39,118 @@ class EvaluateResult(BaseModel):
     feedback_message: str = Field(..., description="フィードバックメッセージ")
 
 
-@task
-async def select_sections(
-    paper: ArxivPaper, topic_title: TopicTitle, llm
-) -> PodcastTopic:
-    prompt_text = """
-    """
-    message = ChatPromptTemplate(
-        [
-            ("human", prompt_text),
-        ]
-    )
-    chain = message | llm.with_structured_output(StrOutputParser())
-    topic = await chain.ainvoke({})
-    return topic
+SectionSummaries = dict[str, SectionSummary]
+MissingInfos = list[tuple[ArxivSection, str]]
+
+
+def load_prompt(name: str) -> str:
+    prompt_path = Path(__file__).parent / "prompts" / f"{name}.txt"
+    return prompt_path.read_text().strip()
 
 
 @task
-async def summarize_topic(
-    paper: ArxivPaper, topic: PodcastTopic, llm
-) -> PodcastTopicSummary:
-    prompt_text = """
-    """
-    message = ChatPromptTemplate(
-        [
-            ("human", prompt_text),
-        ]
-    )
-    chain = message | llm.with_structured_output(StrOutputParser())
-    script = await chain.ainvoke({})
-    return script
+async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser, llm) -> SectionSummaries:
+    prompt = load_prompt("summarize_sections")
+
+    summaries = {}
+    for section in paper.sections:
+        content = markdown_parser.extract_markdown_text(section)
+        message = ChatPromptTemplate(
+            [
+                ("human", prompt),
+            ]
+        )
+        chain = message | llm.with_structured_output(SectionSummary)
+        summary = await chain.ainvoke({
+            "title": paper.title,
+            "abstract": paper.abstract,
+            "section_title": section.title,
+            "section_content": content
+        })
+        summaries[section.section_level_name] = summary
+
+    return summaries
 
 
 @task
 async def write_script(
     paper: ArxivPaper,
-    summaries: list[PodcastTopicSummary],
+    summaries: SectionSummaries,
     feedback_messages: list[str],
     llm,
 ) -> str:
-    prompt_text = """
-    """
+    prompt = load_prompt("write_script")
+    if feedback_messages:
+        feedback_text = "\n".join([f"- {msg}" for msg in feedback_messages])
+        prompt += f"\n\n# フィードバック\n{feedback_text}"
+
     message = ChatPromptTemplate(
         [
-            ("human", prompt_text),
+            ("human", prompt),
         ]
     )
-    chain = message | llm.with_structured_output(StrOutputParser())
-    script = await chain.ainvoke({})
+    chain = message | llm.with_structured_output(PodcastScriptWritingResult)
+    summaries_text = "\n".join([f"{s.section.title}: {s.summary}" for s in summaries.values()])
+    script = await chain.ainvoke({
+        "title": paper.title,
+        "abstract": paper.abstract,
+        "summaries": summaries_text,
+    })
     return script
+
+@task
+async def refine_summaries(
+    paper: ArxivPaper,
+    summaries: SectionSummaries,
+    missing_infos: list[tuple[ArxivSection, str]],
+    llm,
+) -> SectionSummaries:
+    prompt = load_prompt("refine_summaries")
+
+    for section, missing_info in missing_infos:
+        message = ChatPromptTemplate(
+            [
+                ("human", prompt),
+            ]
+        )
+        chain = message | llm.with_structured_output(SectionSummary)
+        refined_summary = await chain.ainvoke({
+            "title": paper.title,
+            "abstract": paper.abstract,
+        })
+        summaries[section.section_level_name] = refined_summary
+
+    return summaries
 
 
 @task
 async def evaluate_script(script: str, llm) -> EvaluateResult:
-    prompt_text = """
-    """
+    prompt = load_prompt("evaluate_script")
     message = ChatPromptTemplate(
         [
-            ("human", prompt_text),
+            ("human", prompt),
         ]
     )
-    chain = message | llm.with_structured_output(StrOutputParser())
-    result = await chain.ainvoke({})
+    chain = message | llm.with_structured_output(EvaluateResult)
+    result = await chain.ainvoke({
+        "script": script,
+    })
     return result
 
 
 @entrypoint()
-async def script_writing_workflow(paper: ArxivPaper, llm):
-    topics = []
-    for title in TopicTitle:
-        topic = await select_sections(paper, title, llm)
-        topics.append(topic)
-
-    summaries = []
-    for topic in topics:
-        summary = await summarize_topic(paper, topic, llm)
-        summaries.append(summary)
+async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownParser, llm):
+    summaries = await summarize_sections(paper, markdown_parser, llm)
 
     feedback_messages = []
     retry_count = 0
+    script = ""
 
     while retry_count < MAX_RETRY_COUNT:
-        script = await write_script(paper, summaries, feedback_messages, llm)
+        script, missing_infos = await write_script(paper, summaries, feedback_messages, llm)
+        if missing_infos:
+            summaries = refine_summaries(paper, summaries, missing_infos, llm)
+
         evaluation = await evaluate_script(script, llm)
 
         if evaluation.is_valid:
@@ -145,3 +158,22 @@ async def script_writing_workflow(paper: ArxivPaper, llm):
 
         feedback_messages.append(evaluation.feedback_message)
         retry_count += 1
+
+    return script
+
+
+def main():
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2)
+
+    paper = ArxivPaper()
+    markdown_parser = MarkdownParser(pdf_path="sample.pdf")
+
+    script = asyncio.run(script_writing_workflow.ainvoke(
+        {"paper": paper, "markdown_parser": markdown_parser, "llm": llm},
+        config={"run_name": "ScriptWritingAgent"}
+    ))
+    print(script)
+
+
+if __name__ == "__main__":
+    main()
