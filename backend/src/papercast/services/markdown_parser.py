@@ -1,26 +1,9 @@
 from functools import partial
 from itertools import pairwise
 
-from pydantic import BaseModel, Field
+from papercast.entities.arxiv_paper import ArxivSection
 
 import pymupdf, pymupdf4llm
-
-
-class ArxivSection(BaseModel):
-    title: str = Field(..., description="セクションのタイトル")
-    level: int = Field(..., description="セクションのレベル（アウトラインの階層）")
-    section_level_name: str = Field(
-        ..., description="セクションのレベル名（アウトラインの階層名）"
-    )
-    start_page: int = Field(..., description="セクションの開始ページ（0始まり）")
-    end_page: int = Field(..., description="セクションの終了ページ（0始まり）")
-    next_section_title: str = Field(
-        ..., description="次のセクションのタイトル（終了ページの決定に使用）"
-    )
-
-    @property
-    def section_title_with_level(self) -> str:
-        return f"{self.section_level_name} {self.title}"
 
 
 def _extract_lines(text: str, marker: str, keep: str) -> str:
@@ -30,7 +13,7 @@ def _extract_lines(text: str, marker: str, keep: str) -> str:
             if keep == "before":
                 return "\n".join(lines[:i])
             elif keep == "after":
-                return "\n".join(lines[i+1:])
+                return "\n".join(lines[i + 1 :])
     return text
 
 

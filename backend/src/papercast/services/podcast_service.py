@@ -8,20 +8,13 @@ from langgraph.func import entrypoint, task
 from pydantic import BaseModel, Field
 
 from papercast.config import GEMINI_API_KEY
+from papercast.entities import ArxivPaper
 from papercast.services.markdown_parser import MarkdownParser, ArxivSection
 
 logger = getLogger(__name__)
 MAX_RETRY_COUNT = 3
 
 GEMINI_MODEL = "gemini-2.5-flash"
-
-
-class ArxivPaper(BaseModel):
-    title: str = Field(..., description="論文のタイトル")
-    abstract: str = Field(..., description="論文のアブストラクト")
-    authors: list[str] = Field(..., description="著者のリスト")
-    url: str = Field(..., description="論文のURL")
-    sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
 
 
 class SectionSummary(BaseModel):
@@ -31,7 +24,9 @@ class SectionSummary(BaseModel):
 
 class PodcastScriptWritingResult(BaseModel):
     script: str = Field(..., description="生成されたポッドキャストの台本")
-    missing_infos: list[tuple[ArxivSection, str]] = Field(..., description="台本に反映されなかった情報のリスト")
+    missing_infos: list[tuple[ArxivSection, str]] = Field(
+        ..., description="台本に反映されなかった情報のリスト"
+    )
 
 
 class EvaluateResult(BaseModel):
@@ -49,7 +44,9 @@ def load_prompt(name: str) -> str:
 
 
 @task
-async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser, llm) -> SectionSummaries:
+async def summarize_sections(
+    paper: ArxivPaper, markdown_parser: MarkdownParser, llm
+) -> SectionSummaries:
     prompt = load_prompt("summarize_sections")
 
     summaries = {}
@@ -61,12 +58,14 @@ async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser,
             ]
         )
         chain = message | llm.with_structured_output(SectionSummary)
-        summary = await chain.ainvoke({
-            "title": paper.title,
-            "abstract": paper.abstract,
-            "section_title": section.title,
-            "section_content": content
-        })
+        summary = await chain.ainvoke(
+            {
+                "title": paper.title,
+                "abstract": paper.abstract,
+                "section_title": section.title,
+                "section_content": content,
+            }
+        )
         summaries[section.section_level_name] = summary
 
     return summaries
@@ -90,13 +89,18 @@ async def write_script(
         ]
     )
     chain = message | llm.with_structured_output(PodcastScriptWritingResult)
-    summaries_text = "\n".join([f"{s.section.title}: {s.summary}" for s in summaries.values()])
-    script = await chain.ainvoke({
-        "title": paper.title,
-        "abstract": paper.abstract,
-        "summaries": summaries_text,
-    })
+    summaries_text = "\n".join(
+        [f"{s.section.title}: {s.summary}" for s in summaries.values()]
+    )
+    script = await chain.ainvoke(
+        {
+            "title": paper.title,
+            "abstract": paper.abstract,
+            "summaries": summaries_text,
+        }
+    )
     return script
+
 
 @task
 async def refine_summaries(
@@ -114,10 +118,12 @@ async def refine_summaries(
             ]
         )
         chain = message | llm.with_structured_output(SectionSummary)
-        refined_summary = await chain.ainvoke({
-            "title": paper.title,
-            "abstract": paper.abstract,
-        })
+        refined_summary = await chain.ainvoke(
+            {
+                "title": paper.title,
+                "abstract": paper.abstract,
+            }
+        )
         summaries[section.section_level_name] = refined_summary
 
     return summaries
@@ -132,14 +138,18 @@ async def evaluate_script(script: str, llm) -> EvaluateResult:
         ]
     )
     chain = message | llm.with_structured_output(EvaluateResult)
-    result = await chain.ainvoke({
-        "script": script,
-    })
+    result = await chain.ainvoke(
+        {
+            "script": script,
+        }
+    )
     return result
 
 
 @entrypoint()
-async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownParser, llm):
+async def script_writing_workflow(
+    paper: ArxivPaper, markdown_parser: MarkdownParser, llm
+):
     summaries = await summarize_sections(paper, markdown_parser, llm)
 
     feedback_messages = []
@@ -147,7 +157,9 @@ async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownPa
     script = ""
 
     while retry_count < MAX_RETRY_COUNT:
-        script, missing_infos = await write_script(paper, summaries, feedback_messages, llm)
+        script, missing_infos = await write_script(
+            paper, summaries, feedback_messages, llm
+        )
         if missing_infos:
             summaries = refine_summaries(paper, summaries, missing_infos, llm)
 
@@ -163,15 +175,19 @@ async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownPa
 
 
 def main():
-    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2)
+    llm = ChatGoogleGenerativeAI(
+        model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2
+    )
 
     paper = ArxivPaper()
     markdown_parser = MarkdownParser(pdf_path="sample.pdf")
 
-    script = asyncio.run(script_writing_workflow.ainvoke(
-        {"paper": paper, "markdown_parser": markdown_parser, "llm": llm},
-        config={"run_name": "ScriptWritingAgent"}
-    ))
+    script = asyncio.run(
+        script_writing_workflow.ainvoke(
+            {"paper": paper, "markdown_parser": markdown_parser, "llm": llm},
+            config={"run_name": "ScriptWritingAgent"},
+        )
+    )
     print(script)
 
 
