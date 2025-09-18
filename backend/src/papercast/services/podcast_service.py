@@ -24,9 +24,7 @@ class SectionSummary(BaseModel):
 
 class PodcastScriptWritingResult(BaseModel):
     script: str = Field(..., description="生成されたポッドキャストの台本")
-    missing_infos: list[tuple[ArxivSection, str]] = Field(
-        ..., description="台本に反映されなかった情報のリスト"
-    )
+    missing_infos: list[tuple[ArxivSection, str]] = Field(..., description="台本に反映されなかった情報のリスト")
 
 
 class EvaluateResult(BaseModel):
@@ -44,9 +42,7 @@ def load_prompt(name: str) -> str:
 
 
 @task
-async def summarize_sections(
-    paper: ArxivPaper, markdown_parser: MarkdownParser, llm
-) -> SectionSummaries:
+async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser, llm) -> SectionSummaries:
     prompt = load_prompt("summarize_sections")
 
     summaries = {}
@@ -89,9 +85,7 @@ async def write_script(
         ]
     )
     chain = message | llm.with_structured_output(PodcastScriptWritingResult)
-    summaries_text = "\n".join(
-        [f"{s.section.title}: {s.summary}" for s in summaries.values()]
-    )
+    summaries_text = "\n".join([f"{s.section.title}: {s.summary}" for s in summaries.values()])
     script = await chain.ainvoke(
         {
             "title": paper.title,
@@ -147,9 +141,7 @@ async def evaluate_script(script: str, llm) -> EvaluateResult:
 
 
 @entrypoint()
-async def script_writing_workflow(
-    paper: ArxivPaper, markdown_parser: MarkdownParser, llm
-):
+async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownParser, llm):
     summaries = await summarize_sections(paper, markdown_parser, llm)
 
     feedback_messages = []
@@ -157,9 +149,7 @@ async def script_writing_workflow(
     script = ""
 
     while retry_count < MAX_RETRY_COUNT:
-        script, missing_infos = await write_script(
-            paper, summaries, feedback_messages, llm
-        )
+        script, missing_infos = await write_script(paper, summaries, feedback_messages, llm)
         if missing_infos:
             summaries = refine_summaries(paper, summaries, missing_infos, llm)
 
@@ -175,9 +165,7 @@ async def script_writing_workflow(
 
 
 def main():
-    llm = ChatGoogleGenerativeAI(
-        model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2
-    )
+    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2)
 
     paper = ArxivPaper()
     markdown_parser = MarkdownParser(pdf_path="sample.pdf")

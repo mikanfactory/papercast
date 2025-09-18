@@ -55,7 +55,7 @@ class ArxivPaperScraper:
             title_text = title_h1.get_text(strip=True)
             prefix = "Title:"
             if title_text.startswith(prefix):
-                title = title_text[len(prefix):].strip()
+                title = title_text[len(prefix) :].strip()
 
         authors = []
         authors_div = soup.find("div", class_="authors")
@@ -82,7 +82,7 @@ class ArxivPaperScraper:
             authors=authors,
             url=self.arxiv_url,
             paper_id=self.arxiv_url.split("/")[-1],
-            sections=[]
+            sections=[],
         )
 
 
