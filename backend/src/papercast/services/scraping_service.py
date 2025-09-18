@@ -2,6 +2,7 @@ import datetime as dt
 import re
 import requests
 from bs4 import BeautifulSoup
+from pathlib import Path
 
 from papercast.entities.arxiv_paper import ArxivPaper
 
@@ -85,8 +86,22 @@ class ArxivPaperScraper:
         )
 
 
+def download_paper(paper_id: str) -> Path:
+    destination = Path(f"downloads/papers/{paper_id}.pdf")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    pdf_url = f"https://arxiv.org/pdf/{paper_id}"
+    response = requests.get(pdf_url)
+    with open(destination, "wb") as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+
+    return destination
+
+
 if __name__ == "__main__":
     url = "https://arxiv.org/abs/2508.18106"
     paper_scraper = ArxivPaperScraper(url)
     info = paper_scraper.scrape_arxiv_info()
-    print(info)
+    download_paper(info.paper_id)
