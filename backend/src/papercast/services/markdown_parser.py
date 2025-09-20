@@ -1,9 +1,10 @@
 from functools import partial
 from itertools import pairwise
 
-from papercast.entities.arxiv_paper import ArxivSection
+import pymupdf
+import pymupdf4llm
 
-import pymupdf, pymupdf4llm
+from papercast.entities.arxiv_paper import ArxivSection
 
 
 def _extract_lines(text: str, marker: str, keep: str) -> str:

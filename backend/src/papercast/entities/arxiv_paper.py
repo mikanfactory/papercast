@@ -15,6 +15,7 @@ class ArxivSection(BaseModel):
 
 
 class ArxivPaper(BaseModel):
+    id: int | None = Field(default=None, description="論文のID（データベース上のID）")
     title: str = Field(..., description="論文のタイトル")
     abstract: str = Field(..., description="論文のアブストラクト")
     authors: list[str] = Field(..., description="著者のリスト")

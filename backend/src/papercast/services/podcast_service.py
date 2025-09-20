@@ -1,6 +1,6 @@
-from pathlib import Path
 import asyncio
 from logging import getLogger
+from pathlib import Path
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from papercast.config import GEMINI_API_KEY
 from papercast.entities import ArxivPaper
-from papercast.services.markdown_parser import MarkdownParser, ArxivSection
+from papercast.services.markdown_parser import ArxivSection, MarkdownParser
 
 logger = getLogger(__name__)
 MAX_RETRY_COUNT = 3

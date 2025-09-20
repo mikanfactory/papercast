@@ -1,8 +1,9 @@
 import datetime as dt
 import re
+from pathlib import Path
+
 import requests
 from bs4 import BeautifulSoup
-from pathlib import Path
 
 from papercast.entities.arxiv_paper import ArxivPaper
 
