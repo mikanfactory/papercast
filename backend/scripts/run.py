@@ -1,16 +1,23 @@
-from papercast.services.markdown_parser import MarkdownParser
-from papercast.services.scraping_service import DailyPaperScraper, ArxivPaperScraper, download_paper
+from papercast.repositories.arxiv_paper_repository import ArxivPaperRepository
+from papercast.services.arxiv_paper_service import ArxivPaperService
+from papercast.services.db import supabase_client
+
+
+def create_arxiv_paper():
+    url = "https://arxiv.org/abs/2508.18106"
+    service = ArxivPaperService(ArxivPaperRepository(supabase_client))
+    arxiv_paper = service.create_arxiv_paper(url)
+    print(arxiv_paper)
+
+
+def find_arxiv_paper(id=1):
+    service = ArxivPaperService(ArxivPaperRepository(supabase_client))
+    arxiv_paper = service.find_arxiv_paper(id)
+    print(arxiv_paper)
+
 
 def main():
-    url = "https://arxiv.org/abs/2508.18106"
-    paper_scraper = ArxivPaperScraper(url)
-    info = paper_scraper.scrape_arxiv_info()
-    destination = download_paper(info.paper_id)
-
-    parser = MarkdownParser(pdf_path=str(destination))
-    info.sections = parser.extract_sections_by_outline()
-
-    print(info)
+    find_arxiv_paper()
 
 
 if __name__ == "__main__":
