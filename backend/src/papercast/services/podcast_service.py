@@ -21,7 +21,6 @@ class SectionSummary(BaseModel):
 
 class PodcastScriptWritingResult(BaseModel):
     script: str = Field(..., description="生成されたポッドキャストの台本")
-    missing_infos: list[tuple[ArxivSection, str]] = Field(..., description="台本に反映されなかった情報のリスト")
 
 
 class EvaluateResult(BaseModel):
@@ -38,13 +37,14 @@ def load_prompt(name: str) -> str:
     return prompt_path.read_text().strip()
 
 
-# @task
+@task
 async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser, llm) -> SectionSummaries:
     prompt = load_prompt("summarize_sections")
 
     summaries = {}
     # TODO: levelを可変にする
     for section in markdown_parser.extract_sections_by_outline(level=1):
+        logger.info(f"summarize section for {section.section_level_name}: {section.title}...")
         content = markdown_parser.extract_markdown_text(section)
         message = ChatPromptTemplate(
             [
@@ -73,6 +73,7 @@ async def write_script(
     feedback_messages: list[str],
     llm,
 ) -> str:
+    logger.info(f"Writing script for paper: {paper.title}")
     prompt = load_prompt("write_script")
     if feedback_messages:
         feedback_text = "\n".join([f"- {msg}" for msg in feedback_messages])
@@ -84,10 +85,11 @@ async def write_script(
         ]
     )
     chain = message | llm.with_structured_output(PodcastScriptWritingResult)
-    summaries_text = "\n".join([f"{s.section.title}: {s.summary}" for s in summaries.values()])
+    summaries_text = "\n".join([f"{s.section.title}\n{s.summary}\n\n" for s in summaries.values()])
     script = await chain.ainvoke(
         {
             "title": paper.title,
+            "authors": ", ".join(paper.authors),
             "abstract": paper.abstract,
             "summaries": summaries_text,
         }
@@ -148,9 +150,9 @@ async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownPa
     script = ""
 
     while retry_count < MAX_RETRY_COUNT:
-        script, missing_infos = await write_script(paper, summaries, feedback_messages, llm)
-        if missing_infos:
-            summaries = refine_summaries(paper, summaries, missing_infos, llm)
+        script = await write_script(paper, summaries, feedback_messages, llm)
+        # if missing_infos:
+        #     summaries = refine_summaries(paper, summaries, missing_infos, llm)
 
         evaluation = await evaluate_script(script, llm)
 

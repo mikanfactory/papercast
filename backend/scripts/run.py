@@ -1,12 +1,14 @@
 import asyncio
+
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.func import entrypoint
 
 from papercast.config import GEMINI_API_KEY
 from papercast.repositories.arxiv_paper_repository import ArxivPaperRepository
-from papercast.services.arxiv_paper_service import ArxivPaperService
-from papercast.services.markdown_parser import MarkdownParser
-from papercast.services.db import supabase_client
 from papercast.services import podcast_service as ps
+from papercast.services.arxiv_paper_service import ArxivPaperService
+from papercast.services.db import supabase_client
+from papercast.services.markdown_parser import MarkdownParser
 
 
 def create_arxiv_paper():
@@ -22,21 +24,55 @@ def find_arxiv_paper(arxiv_paper_id=1):
     print(arxiv_paper)
 
 
+@entrypoint()
+async def _summarize_sections(inputs: dict):
+    paper, markdown_parser, llm = inputs["paper"], inputs["markdown_parser"], inputs["llm"]
+    return await ps.summarize_sections(paper, markdown_parser, llm)
+
+
 def summarize_sections(arxiv_paper_id=1):
     service = ArxivPaperService(ArxivPaperRepository(supabase_client))
     paper = service.find_arxiv_paper(arxiv_paper_id)
 
+    markdown_parser = MarkdownParser(pdf_path=paper.download_path)
+
     gemini_model = "gemini-2.5-flash"
     llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
 
-    markdown_parser = MarkdownParser(pdf_path=paper.download_path)
-
     summaries = asyncio.run(
-        ps.summarize_sections(paper, markdown_parser, llm)
+        _summarize_sections.ainvoke(
+            {"paper": paper, "markdown_parser": markdown_parser, "llm": llm}, config={"run_name": "ScriptWritingAgent"}
+        )
     )
+
     for key, summary in summaries.values():
         print(key)
         print(summary)
+
+    return summaries
+
+
+@entrypoint()
+async def _write_script(inputs: dict):
+    paper, summaries, llm = inputs["paper"], inputs["summaries"], inputs["llm"]
+    return await ps.write_script(paper, summaries, [], llm)
+
+
+def write_script(arxiv_paper_id=1):
+    service = ArxivPaperService(ArxivPaperRepository(supabase_client))
+    paper = service.find_arxiv_paper(arxiv_paper_id)
+
+    summaries = summarize_sections(arxiv_paper_id)
+
+    gemini_model = "gemini-2.5-flash"
+    llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
+    script = asyncio.run(
+        _write_script.ainvoke(
+            {"paper": paper, "summaries": summaries, "llm": llm}, config={"run_name": "ScriptWritingAgent"}
+        )
+    )
+    print("=============================================")
+    print(script)
 
 
 def main():

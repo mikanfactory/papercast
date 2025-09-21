@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make test:*)",
+      "Bash(make test/integration:*)",
+      "Bash(make lint:*)",
+      "Bash(make format:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff format:*)",
+      "Bash(uv run ruff *)",
+      "Bash(uv run ruff check:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
+    ],
+    "deny": []
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "jetbrains",
+    "brave-search"
+  ]
+}

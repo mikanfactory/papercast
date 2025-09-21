@@ -4,7 +4,7 @@ lint:
 
 .PHONY: format
 format:
-	uv run ruff format src tests && uv run ruff check --fix src tests
+	uv run ruff format src tests scripts && uv run ruff check --fix src tests scripts
 
 .PHONY: test
 test:
