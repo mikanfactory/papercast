@@ -1,14 +1,29 @@
 import asyncio
 
+from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.func import entrypoint
+from pydantic import BaseModel
 
 from papercast.config import GEMINI_API_KEY
+from papercast.entities.arxiv_paper import ArxivPaper
 from papercast.repositories.arxiv_paper_repository import ArxivPaperRepository
 from papercast.services import podcast_service as ps
 from papercast.services.arxiv_paper_service import ArxivPaperService
 from papercast.services.db import supabase_client
 from papercast.services.markdown_parser import MarkdownParser
+
+
+class SummarizeSectionInput(BaseModel):
+    paper: ArxivPaper
+    markdown_parser: MarkdownParser
+    llm: ChatGoogleGenerativeAI
+
+
+class WriteScriptInput(BaseModel):
+    paper: ArxivPaper
+    summaries: ps.SectionSummaries
+    llm: ChatGoogleGenerativeAI
 
 
 def create_arxiv_paper():
@@ -30,7 +45,7 @@ async def _summarize_sections(inputs: dict):
     return await ps.summarize_sections(paper, markdown_parser, llm)
 
 
-def summarize_sections(arxiv_paper_id=1):
+def summarize_sections(arxiv_paper_id=1, dump=False):
     service = ArxivPaperService(ArxivPaperRepository(supabase_client))
     paper = service.find_arxiv_paper(arxiv_paper_id)
 
@@ -41,13 +56,15 @@ def summarize_sections(arxiv_paper_id=1):
 
     summaries = asyncio.run(
         _summarize_sections.ainvoke(
-            {"paper": paper, "markdown_parser": markdown_parser, "llm": llm}, config={"run_name": "ScriptWritingAgent"}
+            SummarizeSectionInput(paper=paper, markdown_parser=markdown_parser, llm=llm),
+            config=RunnableConfig(run_name="Summarize Sections"),
         )
     )
 
-    for key, summary in summaries.values():
-        print(key)
-        print(summary)
+    if not dump:
+        for key, summary in summaries.values():
+            print(key)
+            print(summary)
 
     return summaries
 
@@ -68,7 +85,7 @@ def write_script(arxiv_paper_id=1):
     llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
     script = asyncio.run(
         _write_script.ainvoke(
-            {"paper": paper, "summaries": summaries, "llm": llm}, config={"run_name": "ScriptWritingAgent"}
+            WriteScriptInput(paper=paper, summaries=summaries, llm=llm), config=RunnableConfig(run_name="Write Script")
         )
     )
     print("=============================================")
