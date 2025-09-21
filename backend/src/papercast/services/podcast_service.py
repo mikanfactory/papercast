@@ -38,12 +38,13 @@ def load_prompt(name: str) -> str:
     return prompt_path.read_text().strip()
 
 
-@task
+# @task
 async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser, llm) -> SectionSummaries:
     prompt = load_prompt("summarize_sections")
 
     summaries = {}
-    for section in paper.sections:
+    # TODO: levelを可変にする
+    for section in markdown_parser.extract_sections_by_outline(level=1):
         content = markdown_parser.extract_markdown_text(section)
         message = ChatPromptTemplate(
             [
@@ -54,6 +55,7 @@ async def summarize_sections(paper: ArxivPaper, markdown_parser: MarkdownParser,
         summary = await chain.ainvoke(
             {
                 "title": paper.title,
+                "authors": ", ".join(paper.authors),
                 "abstract": paper.abstract,
                 "section_title": section.title,
                 "section_content": content,

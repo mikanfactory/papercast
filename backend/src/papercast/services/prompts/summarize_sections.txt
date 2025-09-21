@@ -1,38 +1,30 @@
 <paper_information>
 <title>{title}</title>
+<authors>{authors}</authors>
 <abstract>{abstract}</abstract>
 </paper_information>
 
-<sections>
-{context}
-</sections>
-
-<goal_setting>
-{goal}
-</goal_setting>
-
-<selected_section_indices>
-{selected_section_indices}
-</selected_section_indices>
-
-<sufficiency_check>
-{sufficiency_check}
-</sufficiency_check>
+<section_information>
+<section_title>{section_title}</section_title>
+<section_content>{section_content}</section_content>
+</section_information>
 
 <task>
-goal_settingsタグで与えられている目標を達成するために、調査タスクとして「{task}」を実施します。今あなたはpaper_informationタグに含まれている論文を読んでいます。調査タスクを実行する上で、sectionsタグに含まれている内容から読むべきセクション番号を出力してください。セクション番号をカンマ区切りで出力すること。
-
-例：
-1,3,4
-
-最大{max_sections}個のセクションまで選択可能です。
+今あなたはpaper_informationタグに含まれている論文の中のsection_informationタグに含まれているセクションを要約しようとしています。
+下記のrulesタグに囲まれた内容に沿って要約を行ってください。
 </task>
 
-以下のrulesタグに囲まれた内容を必ず守ること。
-
 <rules>
-- selected_section_indicesタグに含まれているセクション番号は指定しないこと。
-- sufficiency_checkタグに記載されている内容を参考にセクション番号を選択すること。
-- カンマ区切りで複数のセクション番号を出力すること。
-- スペースは絶対に含めないこと。
+- 要約は日本語で行ってください。
+- 要約はなるべく情報詳しく行ってください。後のタスクで要約を使う可能性があるため、重要な情報を省略しないでください。
+- 下記のtopicsタグに対応する内容か判断し、対応するようであれば要約に含めてください。
 </rules>
+
+<topics>
+- どういった研究領域なのか。また何が課題なのか。そのうち何を解決しようとしているか。
+- 先行研究と比べて何が優れているか。
+- 提案手法の優れた点はどこか。
+- どうやって有効だと検証したか。
+- Future Workは何か。
+- 全体を通して議論が甘いところはあるか。
+</topics>
