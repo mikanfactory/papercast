@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import BaseModel, Field
 
 
@@ -14,6 +16,10 @@ class ArxivSection(BaseModel):
         return f"{self.section_level_name} {self.title}"
 
 
+def download_path(paper_id: str) -> Path:
+    return Path(f"downloads/papers/{paper_id}.pdf")
+
+
 class ArxivPaper(BaseModel):
     id: int | None = Field(default=None, description="論文のID（データベース上のID）")
     title: str = Field(..., description="論文のタイトル")
@@ -22,3 +28,7 @@ class ArxivPaper(BaseModel):
     url: str = Field(..., description="論文のURL")
     paper_id: str = Field(..., description="論文のID")
     sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
+
+    @property
+    def download_path(self):
+        return download_path(self.paper_id)

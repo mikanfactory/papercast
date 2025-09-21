@@ -1,15 +1,12 @@
-import asyncio
 from logging import getLogger
 from pathlib import Path
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.func import entrypoint, task
 from pydantic import BaseModel, Field
 
-from papercast.config import GEMINI_API_KEY
-from papercast.entities import ArxivPaper
-from papercast.services.markdown_parser import ArxivSection, MarkdownParser
+from papercast.entities.arxiv_paper import ArxivPaper, ArxivSection
+from papercast.services.markdown_parser import MarkdownParser
 
 logger = getLogger(__name__)
 MAX_RETRY_COUNT = 3
@@ -162,22 +159,3 @@ async def script_writing_workflow(paper: ArxivPaper, markdown_parser: MarkdownPa
         retry_count += 1
 
     return script
-
-
-def main():
-    llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, api_key=GEMINI_API_KEY, temperature=0.2)
-
-    paper = ArxivPaper()
-    markdown_parser = MarkdownParser(pdf_path="sample.pdf")
-
-    script = asyncio.run(
-        script_writing_workflow.ainvoke(
-            {"paper": paper, "markdown_parser": markdown_parser, "llm": llm},
-            config={"run_name": "ScriptWritingAgent"},
-        )
-    )
-    print(script)
-
-
-if __name__ == "__main__":
-    main()

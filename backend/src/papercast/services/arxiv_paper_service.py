@@ -20,7 +20,7 @@ class ArxivPaperService:
         destination = download_paper(arxiv_paper.paper_id)
 
         parser = MarkdownParser(pdf_path=str(destination))
-        arxiv_paper.sections = parser.extract_sections_by_outline()
+        arxiv_paper.sections = parser.extract_all_sections_by_outline()
 
         return self.arxiv_paper_repo.create(arxiv_paper)
 

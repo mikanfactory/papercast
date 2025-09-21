@@ -5,7 +5,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 
-from papercast.entities.arxiv_paper import ArxivPaper
+from papercast.entities.arxiv_paper import ArxivPaper, download_path
 
 
 class DailyPaperScraper:
@@ -88,7 +88,7 @@ class ArxivPaperScraper:
 
 
 def download_paper(paper_id: str) -> Path:
-    destination = Path(f"downloads/papers/{paper_id}.pdf")
+    destination = download_path(paper_id)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     pdf_url = f"https://arxiv.org/pdf/{paper_id}"

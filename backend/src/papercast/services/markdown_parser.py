@@ -28,14 +28,18 @@ class MarkdownParser:
         self.doc = pymupdf.open(pdf_path)
         self.page_count = self.doc.page_count
 
-    def extract_sections_by_outline(self) -> list[ArxivSection]:
+    def extract_all_sections_by_outline(self) -> list[ArxivSection]:
+        return self.extract_sections_by_outline()
+
+    def extract_sections_by_outline(self, level: int | None = None) -> list[ArxivSection]:
         toc: list[list] = self.doc.get_toc(simple=False) or []
+        if level:
+            toc = [item for item in toc if item[0] == level]
 
         if not toc:
             raise ValueError("The document has no outline (table of contents).")
 
         sections = []
-        # TODO: sectionのレベルを考慮する
         for prev, nxt in pairwise(toc):
             section = ArxivSection(
                 title=prev[1],
@@ -81,4 +85,4 @@ if __name__ == "__main__":
     #     print(sec.title)
     #     print(parser.extract_markdown_text(sec))
     #     print("**********************************************")
-    print(parser.read_all())
+    print(parser.extract_sections_by_outline(level=None))
