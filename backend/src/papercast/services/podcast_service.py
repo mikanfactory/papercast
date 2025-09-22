@@ -3,6 +3,7 @@ from pathlib import Path
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langgraph.func import entrypoint, task
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,7 +13,9 @@ from papercast.services.markdown_parser import MarkdownParser
 logger = getLogger(__name__)
 MAX_RETRY_COUNT = 3
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_LIGHT_MODEL = "gemini-2.5-flash"
+GEMINI_HEAVY_MODEL = "gemini-2.5-pro"
+OPENAI_MODEL = "gpt-5"
 
 
 class SectionSummary(BaseModel):
@@ -33,7 +36,9 @@ class ScriptWritingWorkflowInput(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     paper: ArxivPaper
     markdown_parser: MarkdownParser
-    llm: ChatGoogleGenerativeAI
+    gemini_light_model: ChatGoogleGenerativeAI
+    gemini_heavy_model: ChatGoogleGenerativeAI
+    openai_model: ChatOpenAI
 
 
 SectionSummaries = dict[str, SectionSummary]
@@ -127,16 +132,15 @@ async def evaluate_script(paper: ArxivPaper, script: str, llm) -> EvaluateResult
 
 @entrypoint()
 async def script_writing_workflow(inputs: ScriptWritingWorkflowInput):
-    paper, markdown_parser, llm = inputs.paper, inputs.markdown_parser, inputs.llm
-    summaries = await summarize_sections(paper, markdown_parser, llm)
+    summaries = await summarize_sections(inputs.paper, inputs.markdown_parser, inputs.gemini_light_model)
 
     feedback_messages = []
     retry_count = 0
     script = ""
 
     while retry_count < MAX_RETRY_COUNT:
-        script = await write_script(paper, summaries, feedback_messages, llm)
-        evaluation = await evaluate_script(paper, script, llm)
+        script = await write_script(inputs.paper, summaries, feedback_messages, inputs.openai_model)
+        evaluation = await evaluate_script(inputs.paper, script, inputs.gemini_heavy_model)
 
         if evaluation.is_valid:
             return script

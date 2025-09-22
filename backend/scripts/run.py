@@ -2,6 +2,7 @@ import asyncio
 
 from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langgraph.func import entrypoint
 from pydantic import BaseModel, ConfigDict
 
@@ -98,12 +99,19 @@ def run_workflow(arxiv_paper_id=1):
 
     markdown_parser = MarkdownParser(pdf_path=paper.download_path)
 
-    gemini_model = "gemini-2.5-flash"
-    llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
+    gemini_light_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=GEMINI_API_KEY, temperature=0.2)
+    gemini_heavy_model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=GEMINI_API_KEY, temperature=0.2)
+    openai_model = ChatOpenAI(model="gpt-5", temperature=0.2)
 
     script = asyncio.run(
         ps.script_writing_workflow.ainvoke(
-            ps.ScriptWritingWorkflowInput(paper=paper, markdown_parser=markdown_parser, llm=llm),
+            ps.ScriptWritingWorkflowInput(
+                paper=paper,
+                markdown_parser=markdown_parser,
+                gemini_light_model=gemini_light_model,
+                gemini_heavy_model=gemini_heavy_model,
+                openai_model=openai_model,
+            ),
             config=RunnableConfig(run_name="Script Writing"),
         )
     )
