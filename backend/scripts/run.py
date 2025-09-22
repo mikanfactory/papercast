@@ -3,7 +3,7 @@ import asyncio
 from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.func import entrypoint
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from papercast.config import GEMINI_API_KEY
 from papercast.entities.arxiv_paper import ArxivPaper
@@ -15,12 +15,14 @@ from papercast.services.markdown_parser import MarkdownParser
 
 
 class SummarizeSectionInput(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     paper: ArxivPaper
     markdown_parser: MarkdownParser
     llm: ChatGoogleGenerativeAI
 
 
 class WriteScriptInput(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     paper: ArxivPaper
     summaries: ps.SectionSummaries
     llm: ChatGoogleGenerativeAI
@@ -40,9 +42,8 @@ def find_arxiv_paper(arxiv_paper_id=1):
 
 
 @entrypoint()
-async def _summarize_sections(inputs: dict):
-    paper, markdown_parser, llm = inputs["paper"], inputs["markdown_parser"], inputs["llm"]
-    return await ps.summarize_sections(paper, markdown_parser, llm)
+async def _summarize_sections(inputs: SummarizeSectionInput):
+    return await ps.summarize_sections(inputs.paper, inputs.markdown_parser, inputs.llm)
 
 
 def summarize_sections(arxiv_paper_id=1, dump=False):
@@ -70,9 +71,8 @@ def summarize_sections(arxiv_paper_id=1, dump=False):
 
 
 @entrypoint()
-async def _write_script(inputs: dict):
-    paper, summaries, llm = inputs["paper"], inputs["summaries"], inputs["llm"]
-    return await ps.write_script(paper, summaries, [], llm)
+async def _write_script(inputs: WriteScriptInput):
+    return await ps.write_script(inputs.paper, inputs.summaries, [], inputs.llm)
 
 
 def write_script(arxiv_paper_id=1):
@@ -92,8 +92,26 @@ def write_script(arxiv_paper_id=1):
     print(script)
 
 
+def run_workflow(arxiv_paper_id=1):
+    service = ArxivPaperService(ArxivPaperRepository(supabase_client))
+    paper = service.find_arxiv_paper(arxiv_paper_id)
+
+    markdown_parser = MarkdownParser(pdf_path=paper.download_path)
+
+    gemini_model = "gemini-2.5-flash"
+    llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
+
+    script = asyncio.run(
+        ps.script_writing_workflow.ainvoke(
+            ps.ScriptWritingWorkflowInput(paper=paper, markdown_parser=markdown_parser, llm=llm),
+            config=RunnableConfig(run_name="Script Writing"),
+        )
+    )
+    print(script)
+
+
 def main():
-    summarize_sections(1)
+    run_workflow(1)
 
 
 if __name__ == "__main__":
