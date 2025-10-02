@@ -1,6 +1,7 @@
 from logging import getLogger
 from pathlib import Path
 
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
@@ -16,6 +17,10 @@ MAX_RETRY_COUNT = 3
 GEMINI_LIGHT_MODEL = "gemini-2.5-flash"
 GEMINI_HEAVY_MODEL = "gemini-2.5-pro"
 OPENAI_MODEL = "gpt-5"
+
+
+class FilterResult(BaseModel):
+    is_target: bool = Field(..., description="対象の論文か否か")
 
 
 class SectionSummary(BaseModel):
@@ -48,6 +53,25 @@ MissingInfos = list[tuple[ArxivSection, str]]
 def load_prompt(name: str) -> str:
     prompt_path = Path(__file__).parent / "prompts" / f"{name}.txt"
     return prompt_path.read_text().strip()
+
+
+@task
+async def is_relevant_paper(paper: ArxivPaper, llm) -> bool:
+    prompt = load_prompt("is_relevant_paper")
+    message = ChatPromptTemplate(
+        [
+            ("human", prompt),
+        ]
+    )
+    chain = message | llm | StrOutputParser()
+    result = await chain.ainvoke(
+        {
+            "title": paper.title,
+            "authors": ", ".join(paper.authors),
+            "abstract": paper.abstract,
+        }
+    )
+    return result.lower() == "yes"
 
 
 @task
@@ -131,7 +155,12 @@ async def evaluate_script(paper: ArxivPaper, script: str, llm) -> EvaluateResult
 
 
 @entrypoint()
-async def script_writing_workflow(inputs: ScriptWritingWorkflowInput):
+async def script_writing_workflow(inputs: ScriptWritingWorkflowInput) -> str | None:
+    relevance = await is_relevant_paper(inputs.paper, inputs.gemini_light_model)
+    if not relevance:
+        logger.info(f"Paper is not relevant: {inputs.paper.title}")
+        return None
+
     summaries = await summarize_sections(inputs.paper, inputs.markdown_parser, inputs.gemini_light_model)
 
     feedback_messages = []

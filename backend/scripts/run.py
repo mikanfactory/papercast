@@ -15,6 +15,12 @@ from papercast.services.db import supabase_client
 from papercast.services.markdown_parser import MarkdownParser
 
 
+class IsRelevantPaperInput(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    paper: ArxivPaper
+    llm: ChatGoogleGenerativeAI
+
+
 class SummarizeSectionInput(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     paper: ArxivPaper
@@ -40,6 +46,28 @@ def find_arxiv_paper(arxiv_paper_id=1):
     service = ArxivPaperService(ArxivPaperRepository(supabase_client))
     arxiv_paper = service.find_arxiv_paper(arxiv_paper_id)
     print(arxiv_paper)
+
+
+@entrypoint()
+async def _is_relevant_paper(inputs: SummarizeSectionInput):
+    return await ps.is_relevant_paper(inputs.paper, inputs.llm)
+
+
+def is_relevant_paper(arxiv_paper_id=1):
+    service = ArxivPaperService(ArxivPaperRepository(supabase_client))
+    paper = service.find_arxiv_paper(arxiv_paper_id)
+
+    gemini_model = "gemini-2.5-flash"
+    llm = ChatGoogleGenerativeAI(model=gemini_model, api_key=GEMINI_API_KEY, temperature=0.2)
+
+    relevant = asyncio.run(
+        _is_relevant_paper.ainvoke(
+            IsRelevantPaperInput(paper=paper, llm=llm),
+            config=RunnableConfig(run_name="Is Relevant Paper"),
+        )
+    )
+    print(f"Is relevant: {relevant}")
+    return relevant
 
 
 @entrypoint()
@@ -119,7 +147,7 @@ def run_workflow(arxiv_paper_id=1):
 
 
 def main():
-    run_workflow(1)
+    is_relevant_paper(1)
 
 
 if __name__ == "__main__":

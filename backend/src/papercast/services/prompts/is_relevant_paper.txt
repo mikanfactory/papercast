@@ -1,0 +1,22 @@
+<paper_information>
+<title>{title}</title>
+<authors>{authors}</authors>
+<abstract>{abstract}</abstract>
+</paper_information>
+
+<task>
+今あなたはpaper_informationタグに含まれている論文を読んでいます。この論文が今回のtopicタグに関する論文かどうかを判断してください。
+</task>
+
+<topics>
+- AIエージェント
+- 新しいモデルのアーキテクチャ
+- 言語モデル
+- 強化学習
+- LLMの制御
+- 上記のトピックに当てはまり、サーベイ論文ではない
+</topics>
+
+<rules>
+- トピックに当てはまる場合はtrueを、当てはまらない場合はfalseを返してください。
+</rules>
