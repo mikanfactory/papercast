@@ -1,6 +1,7 @@
 from logging import getLogger
 from pathlib import Path
 
+from langchain_core.runnables.config import RunnableConfig
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -8,7 +9,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.func import entrypoint, task
 from pydantic import BaseModel, ConfigDict, Field
 
-from papercast.entities.arxiv_paper import ArxivPaper, ArxivSection
+from papercast.config import GEMINI_API_KEY
+from papercast.entities import ArxivPaper, ArxivSection
 from papercast.services.markdown_parser import MarkdownParser
 
 logger = getLogger(__name__)
@@ -178,3 +180,27 @@ async def script_writing_workflow(inputs: ScriptWritingWorkflowInput) -> str | N
         retry_count += 1
 
     return script
+
+
+class PodcastService:
+    def __init__(self):
+        pass
+
+    async def run(self, arxiv_paper: ArxivPaper):
+        markdown_parser = MarkdownParser(pdf_path=arxiv_paper.download_path)
+
+        gemini_light_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=GEMINI_API_KEY, temperature=0.2)
+        gemini_heavy_model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=GEMINI_API_KEY, temperature=0.2)
+        openai_model = ChatOpenAI(model="gpt-5", temperature=0.2)
+
+        result = script_writing_workflow.ainvoke(
+            ScriptWritingWorkflowInput(
+                paper=arxiv_paper,
+                markdown_parser=markdown_parser,
+                gemini_light_model=gemini_light_model,
+                gemini_heavy_model=gemini_heavy_model,
+                openai_model=openai_model,
+            ),
+            config=RunnableConfig(run_name="Script Writing"),
+        )
+        return result

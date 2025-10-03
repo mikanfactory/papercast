@@ -1,6 +1,7 @@
-def main():
-    print("Hello from backend!")
+from fastapi import FastAPI
 
+from papercast.internal import worker
 
-if __name__ == "__main__":
-    main()
+app = FastAPI()
+
+app.include_router(worker.router)
