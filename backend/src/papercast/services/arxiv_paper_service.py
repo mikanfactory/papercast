@@ -1,5 +1,5 @@
 from papercast.entities.arxiv_paper import ArxivPaper
-from papercast.repositories.arxiv_paper_repository import ArxivPaperRepository
+from papercast.repositories import ArxivPaperRepository
 from papercast.services.markdown_parser import MarkdownParser
 from papercast.services.scraping_service import ArxivPaperScraper, download_paper
 

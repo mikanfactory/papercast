@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 from papercast.config import GEMINI_API_KEY
 from papercast.entities.arxiv_paper import ArxivPaper
-from papercast.repositories.arxiv_paper_repository import ArxivPaperRepository
+from papercast.repositories import ArxivPaperRepository
 from papercast.services import podcast_service as ps
 from papercast.services.arxiv_paper_service import ArxivPaperService
 from papercast.services.db import supabase_client
