@@ -1,4 +1,4 @@
-from papercast.entities.arxiv_paper import ArxivPaper
+from papercast.entities import ArxivPaper
 
 
 class ArxivPaperRepository:

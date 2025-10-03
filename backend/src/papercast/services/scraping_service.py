@@ -86,7 +86,7 @@ class ArxivPaperScraper:
             sections=[],
         )
 
-
+# TODO: async/await対応
 def download_paper(paper_id: str) -> Path:
     destination = download_path(paper_id)
     destination.parent.mkdir(parents=True, exist_ok=True)
