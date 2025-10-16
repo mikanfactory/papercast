@@ -25,4 +25,4 @@ class ArxivPaperService:
         return self.arxiv_paper_repo.create(arxiv_paper)
 
     def update(self, arxiv_paper: ArxivPaper) -> ArxivPaper:
-        pass
+        return self.arxiv_paper_repo.update(arxiv_paper)

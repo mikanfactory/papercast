@@ -28,7 +28,7 @@ class ArxivPaper(BaseModel):
     url: str = Field(..., description="論文のURL")
     paper_id: str = Field(..., description="論文のID")
     sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
-    script: str = Field(default='', description="Podcast用のスクリプト")
+    script: str = Field(default="", description="Podcast用のスクリプト")
 
     @property
     def download_path(self):

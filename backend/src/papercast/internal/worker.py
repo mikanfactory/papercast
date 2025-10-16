@@ -3,8 +3,8 @@ import logging
 
 from fastapi import APIRouter, Depends
 
-from papercast.entities import ArxivPaper
 from papercast.dependencies import get_arxiv_paper_service
+from papercast.entities import ArxivPaper
 from papercast.services.arxiv_paper_service import ArxivPaperService
 from papercast.services.podcast_service import PodcastService
 from papercast.services.scraping_service import DailyPaperScraper
@@ -28,7 +28,7 @@ async def invoke(
     target_date: str,
     arxiv_paper_service: ArxivPaperService = Depends(get_arxiv_paper_service),
 ):
-    scraper = DailyPaperScraper(dt.datetime.strptime(target_date, '%Y-%m-%d'))
+    scraper = DailyPaperScraper(dt.datetime.strptime(target_date, "%Y-%m-%d"))
 
     logger.info(f"Scraping papers for date: {target_date}...")
     arxiv_ids = scraper.get_papers_with_arxiv_ids()
@@ -44,21 +44,18 @@ async def invoke(
 
         papers.append(paper)
 
-    service = PodcastService()
-    scripts = []
+    service = PodcastService(arxiv_paper_service)
+
+    relevant_papers = []
     for paper in papers:
-        script = await service.run(paper)
-        # TODO: Save script to database or file
-        if script:
-            scripts.append(script)
-            print(script)
+        paper = await service.run(paper)
+        relevant_papers.append(paper)
 
     return success_response(
         message="Script writing processing completed successfully",
         data={
             "target_date": target_date,
             "listed_paper_count": len(arxiv_ids),
-            "processed_paper_count": len(scripts),
+            "processed_paper_count": len(relevant_papers),
         },
     )
-

@@ -1,9 +1,10 @@
+import asyncio
 from logging import getLogger
 from pathlib import Path
 
-from langchain_core.runnables.config import RunnableConfig
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langgraph.func import entrypoint, task
@@ -11,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from papercast.config import GEMINI_API_KEY
 from papercast.entities import ArxivPaper, ArxivSection
+from papercast.services.arxiv_paper_service import ArxivPaperService
 from papercast.services.markdown_parser import MarkdownParser
 
 logger = getLogger(__name__)
@@ -183,8 +185,10 @@ async def script_writing_workflow(inputs: ScriptWritingWorkflowInput) -> str | N
 
 
 class PodcastService:
-    def __init__(self):
-        pass
+    def __init__(self, arxiv_paper_service: ArxivPaperService):
+        # TODO: semaphoreを使う
+        self.semaphore = asyncio.Semaphore(10)
+        self.arxiv_paper_service = arxiv_paper_service
 
     async def run(self, arxiv_paper: ArxivPaper):
         markdown_parser = MarkdownParser(pdf_path=arxiv_paper.download_path)
@@ -193,7 +197,7 @@ class PodcastService:
         gemini_heavy_model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=GEMINI_API_KEY, temperature=0.2)
         openai_model = ChatOpenAI(model="gpt-5", temperature=0.2)
 
-        result = script_writing_workflow.ainvoke(
+        result = await script_writing_workflow.ainvoke(
             ScriptWritingWorkflowInput(
                 paper=arxiv_paper,
                 markdown_parser=markdown_parser,
@@ -203,4 +207,10 @@ class PodcastService:
             ),
             config=RunnableConfig(run_name="Script Writing"),
         )
-        return result
+
+        if result is None:
+            logger.info(f"Paper is not relevant, skipping script writing: {arxiv_paper.title}")
+            return
+
+        arxiv_paper.script = result
+        self.arxiv_paper_service.update(arxiv_paper)
