@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+from enum import Enum
 
 
 class ArxivSection(BaseModel):
@@ -20,6 +21,13 @@ def download_path(paper_id: str) -> Path:
     return Path(f"downloads/papers/{paper_id}.pdf")
 
 
+class ArxivPaperStatus(Enum):
+    initialized = "initialized"
+    script_created = "script_created"
+    tts_completed = "tts_completed"
+    podcast_created = "podcast_created"
+
+
 class ArxivPaper(BaseModel):
     id: int | None = Field(default=None, description="論文のID（データベース上のID）")
     title: str = Field(..., description="論文のタイトル")
@@ -27,8 +35,10 @@ class ArxivPaper(BaseModel):
     authors: list[str] = Field(..., description="著者のリスト")
     url: str = Field(..., description="論文のURL")
     paper_id: str = Field(..., description="論文のID")
+    target_date: str = Field(..., description="対象日付（YYYY-MM-DD形式）")
     sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
     script: str = Field(default="", description="Podcast用のスクリプト")
+    status: ArxivPaperStatus = Field(default=ArxivPaperStatus.initialized, description="論文の処理ステータス")
 
     @property
     def download_path(self):

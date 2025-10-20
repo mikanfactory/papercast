@@ -1,13 +1,16 @@
+import asyncio
+import time
 import datetime as dt
 import logging
 
 from fastapi import APIRouter, Depends
 
 from papercast.dependencies import get_arxiv_paper_service
-from papercast.entities import ArxivPaper
+from papercast.entities import ArxivPaper, ArxivPaperStatus
 from papercast.services.arxiv_paper_service import ArxivPaperService
 from papercast.services.podcast_service import PodcastService
 from papercast.services.scraping_service import DailyPaperScraper
+from papercast.services.text_to_speach_service import TextToSpeechService
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +26,9 @@ def success_response(message: str, data: dict) -> dict:
     return response
 
 
-@router.post("/invoke/{target_date}")
-async def invoke(
+# TODO: target_dateの形式を指定する
+@router.post("/start_script_writing/{target_date}")
+async def start_script_writing(
     target_date: str,
     arxiv_paper_service: ArxivPaperService = Depends(get_arxiv_paper_service),
 ):
@@ -59,3 +63,38 @@ async def invoke(
             "processed_paper_count": len(relevant_papers),
         },
     )
+
+@router.post("/start_tts")
+async def start_tts(
+    target_date: str,
+    arxiv_paper_service: ArxivPaperService = Depends(get_arxiv_paper_service),
+):
+    tts_service = TextToSpeechService(arxiv_paper_service)
+
+    logger.info(f"Starting TTS. target_date: {target_date}")
+
+    arxiv_papers = arxiv_paper_service.select_target_arxiv_papers(target_date)
+
+    logger.info(f"Updating project status to start TTS. target_date: {target_date}")
+
+    start_time = time.time()
+    await asyncio.wait_for(
+        tts_service.generate_audio(arxiv_papers),
+        timeout=60 * 60,  # 60 minutes timeout
+    )
+    execution_time = time.time() - start_time
+
+    logger.info(f"Updating project status to TTS completed. target_date: {target_date}")
+    for arxiv_paper in arxiv_papers:
+        arxiv_paper_service.update_status(arxiv_paper, ArxivPaperStatus.tts_completed)
+
+    return success_response(
+        message="TTS completed successfully",
+        data={
+            "target_date": target_date,
+            "processed_paper_count": len(arxiv_papers),
+            "execution_time_seconds": round(execution_time, 2),
+        },
+    )
+
+

@@ -17,6 +17,18 @@ class ArxivPaperRepository:
             return [ArxivPaper(**item) for item in response.data]
         return []
 
+    def select_target_papers(self, target_date: str) -> list[ArxivPaper]:
+        response = (
+            self.db.table("arxiv_paper")
+            .select("*")
+            .eq("created_at", target_date)
+            .neq("script", "")
+            .execute()
+        )
+        if len(response.data):
+            return [ArxivPaper(**item) for item in response.data]
+        return []
+
     def create(self, arxiv_paper: ArxivPaper) -> ArxivPaper:
         exclude_fields = {"id", "created_at", "updated_at"}
         response = self.db.table("arxiv_paper").insert(arxiv_paper.model_dump(exclude=exclude_fields)).execute()

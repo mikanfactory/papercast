@@ -1,4 +1,4 @@
-from papercast.entities import ArxivPaper
+from papercast.entities import ArxivPaper, ArxivPaperStatus
 from papercast.repositories import ArxivPaperRepository
 from papercast.services.markdown_parser import MarkdownParser
 from papercast.services.scraping_service import ArxivPaperScraper, download_paper
@@ -14,6 +14,9 @@ class ArxivPaperService:
     def find_arxiv_paper(self, arxiv_paper_id: int) -> ArxivPaper:
         return self.arxiv_paper_repo.find(arxiv_paper_id)
 
+    def select_target_arxiv_papers(self, target_date: str) -> list[ArxivPaper]:
+        return self.arxiv_paper_repo.select_target_papers(target_date)
+
     def create_arxiv_paper(self, url: str) -> ArxivPaper:
         paper_scraper = ArxivPaperScraper(url)
         arxiv_paper = paper_scraper.scrape_arxiv_info()
@@ -25,4 +28,8 @@ class ArxivPaperService:
         return self.arxiv_paper_repo.create(arxiv_paper)
 
     def update(self, arxiv_paper: ArxivPaper) -> ArxivPaper:
+        return self.arxiv_paper_repo.update(arxiv_paper)
+
+    def update_status(self, arxiv_paper: ArxivPaper, status: ArxivPaperStatus) -> ArxivPaper:
+        arxiv_paper.status = status
         return self.arxiv_paper_repo.update(arxiv_paper)
