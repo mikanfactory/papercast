@@ -1,7 +1,7 @@
+from enum import Enum
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-from enum import Enum
 
 
 class ArxivSection(BaseModel):
@@ -38,6 +38,7 @@ class ArxivPaper(BaseModel):
     target_date: str = Field(..., description="対象日付（YYYY-MM-DD形式）")
     sections: list[ArxivSection] = Field(..., description="論文のセクションリスト")
     script: str = Field(default="", description="Podcast用のスクリプト")
+    script_file_count: int = Field(default=0, description="スクリプトの音声ファイル数")
     status: ArxivPaperStatus = Field(default=ArxivPaperStatus.initialized, description="論文の処理ステータス")
 
     @property
