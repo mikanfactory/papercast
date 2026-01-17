@@ -25,7 +25,7 @@ def resolve_tts_audio_path(filename: str, index: int) -> pathlib.Path:
 
 def resolve_audio_output_path(filename: str) -> pathlib.Path:
     audio_dir = build_completed_audio_directory(filename)
-    return audio_dir / f"output.wav"
+    return audio_dir / "output.wav"
 
 
 class TTSFileService(GCSFileUploadable):
@@ -57,9 +57,7 @@ class TTSFileService(GCSFileUploadable):
         return audio_path
 
     @classmethod
-    async def bulk_download_from_gcs(
-        cls, filename: str, script_file_count: int
-    ) -> list[pathlib.Path]:
+    async def bulk_download_from_gcs(cls, filename: str, script_file_count: int) -> list[pathlib.Path]:
         audio_dir = build_tts_audio_directory(filename)
         audio_dir.mkdir(parents=True, exist_ok=True)
 

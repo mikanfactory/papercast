@@ -1,3 +1,3 @@
-from .arxiv_paper import ArxivPaper, ArxivSection, ArxivPaperStatus
+from .arxiv_paper import ArxivPaper, ArxivPaperStatus, ArxivSection
 
 __all__ = ["ArxivPaper", "ArxivSection", "ArxivPaperStatus"]

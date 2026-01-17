@@ -1,7 +1,7 @@
 import asyncio
-import time
 import datetime as dt
 import logging
+import time
 
 from fastapi import APIRouter, Depends
 
@@ -64,6 +64,7 @@ async def start_script_writing(
         },
     )
 
+
 @router.post("/start_tts")
 async def start_tts(
     target_date: str,
@@ -96,5 +97,3 @@ async def start_tts(
             "execution_time_seconds": round(execution_time, 2),
         },
     )
-
-

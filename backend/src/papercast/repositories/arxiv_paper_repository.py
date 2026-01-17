@@ -18,13 +18,7 @@ class ArxivPaperRepository:
         return []
 
     def select_target_papers(self, target_date: str) -> list[ArxivPaper]:
-        response = (
-            self.db.table("arxiv_paper")
-            .select("*")
-            .eq("created_at", target_date)
-            .neq("script", "")
-            .execute()
-        )
+        response = self.db.table("arxiv_paper").select("*").eq("created_at", target_date).neq("script", "").execute()
         if len(response.data):
             return [ArxivPaper(**item) for item in response.data]
         return []
