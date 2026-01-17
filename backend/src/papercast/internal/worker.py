@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from papercast.dependencies import get_arxiv_paper_service
 from papercast.entities import ArxivPaper, ArxivPaperStatus
 from papercast.services.arxiv_paper_service import ArxivPaperService
+from papercast.services.audio_service import AudioService
 from papercast.services.podcast_service import PodcastService
 from papercast.services.scraping_service import DailyPaperScraper
 from papercast.services.text_to_speach_service import TextToSpeechService
@@ -94,6 +95,51 @@ async def start_tts(
         data={
             "target_date": target_date,
             "processed_paper_count": len(arxiv_papers),
+            "execution_time_seconds": round(execution_time, 2),
+        },
+    )
+
+
+@router.post("/start_creating_audio")
+async def start_creating_audio(
+    target_date: str,
+    arxiv_paper_service: ArxivPaperService = Depends(get_arxiv_paper_service),
+):
+    audio_service = AudioService()
+
+    logger.info(f"Starting audio creation. target_date: {target_date}")
+
+    arxiv_papers = arxiv_paper_service.select_target_arxiv_papers(target_date)
+    target_papers = [paper for paper in arxiv_papers if paper.status == ArxivPaperStatus.tts_completed]
+
+    if not target_papers:
+        logger.info(f"No papers with tts_completed status found. target_date: {target_date}")
+        return success_response(
+            message="No papers to process",
+            data={
+                "target_date": target_date,
+                "processed_paper_count": 0,
+            },
+        )
+
+    logger.info(f"Found {len(target_papers)} papers with tts_completed status. target_date: {target_date}")
+
+    start_time = time.time()
+    await asyncio.wait_for(
+        audio_service.generate_audio(target_papers),
+        timeout=60 * 60,  # 60 minutes timeout
+    )
+    execution_time = time.time() - start_time
+
+    logger.info(f"Updating paper status to podcast_created. target_date: {target_date}")
+    for arxiv_paper in target_papers:
+        arxiv_paper_service.update_status(arxiv_paper, ArxivPaperStatus.podcast_created)
+
+    return success_response(
+        message="Audio creation completed successfully",
+        data={
+            "target_date": target_date,
+            "processed_paper_count": len(target_papers),
             "execution_time_seconds": round(execution_time, 2),
         },
     )
