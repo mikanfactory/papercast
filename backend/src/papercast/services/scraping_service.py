@@ -83,6 +83,7 @@ class ArxivPaperScraper:
             authors=authors,
             url=self.arxiv_url,
             paper_id=self.arxiv_url.split("/")[-1],
+            target_date=dt.datetime.now().strftime("%Y-%m-%d"),
             sections=[],
         )
 

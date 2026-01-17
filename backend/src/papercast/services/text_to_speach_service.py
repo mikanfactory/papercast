@@ -10,8 +10,8 @@ from tenacity import before_sleep_log, retry, retry_if_exception_type, stop_afte
 
 from papercast.config import GEMINI_API_KEY
 from papercast.entities import ArxivPaper, ArxivPaperStatus
-from papercast.services.file_service import TTSFileService
 from papercast.services.arxiv_paper_service import ArxivPaperService
+from papercast.services.file_service import TTSFileService
 
 logger = getLogger(__name__)
 GEMINI_MODEL = "gemini-2.5-flash-preview-tts"
@@ -80,7 +80,7 @@ class TextToSpeechService:
             data = await self._invoke(script)
 
         logger.info(f"Saving audio for arxiv paper {arxiv_paper}, index {index}.")
-        source_file_path = TTSFileService.write(arxiv_paper.filename, index, data)
+        source_file_path = TTSFileService.write(arxiv_paper.paper_id, index, data)
         TTSFileService.upload_gcs_from_file(source_file_path)
 
     async def _generate_arxiv_paper_audio(self, arxiv_paper: ArxivPaper) -> None:
@@ -105,7 +105,7 @@ class TextToSpeechService:
             if arxiv_paper.status == ArxivPaperStatus.script_created:
                 await self._generate_arxiv_paper_audio(arxiv_paper)
             else:
-                logger.info(f"Skipping audio generation for chapter (already completed): {str(chapter)}")
+                logger.info(f"Skipping audio generation for paper (already completed): {str(arxiv_paper)}")
 
     async def generate_audio(self, arxiv_papers: list[ArxivPaper]) -> None:
         logger.info("Starting audio generation for chapters.")
